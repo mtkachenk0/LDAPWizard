@@ -1,11 +1,18 @@
+"""
+LDAP-related python-objects
+"""
 import logging
 import ldap
 import ldap.modlist
+
 log = logging.getLogger(__name__)
+
+
 class LDAPConnectionManager(object):
     """
     Simple LDAP Connection object
     """
+
     def __init__(self, ldap_configs):
         """
         Initialise simple LDAP connection
@@ -25,6 +32,7 @@ class LDAPConnectionManager(object):
         self.connection = None
         self.connection = self.connect()
         # log.debug("Created new LDAPConnection instance %s" % self)
+
     def get_connection(self):
         """
         Initialise connection to LDAP if not exists
@@ -34,7 +42,9 @@ class LDAPConnectionManager(object):
             # log.debug("Initialized new LDAPConnection")
             new_conn = ldap.initialize("ldap://%s:%s" % (self.host, self.port))
             self.connection = new_conn
+
         return self.connection
+
     def disconnect(self):
         """
         Disconnect from LDAP, clear self.connection object
@@ -43,8 +53,10 @@ class LDAPConnectionManager(object):
         log.debug("Disconnecting %s" % self)
         self.connection.unbind_s()
         self.connection = None
+
     def connect(self):
         """
+
         :return:
         """
         established_connection = self.get_connection()
@@ -53,18 +65,23 @@ class LDAPConnectionManager(object):
         established_connection.set_option(ldap.OPT_TIMELIMIT, int(self.timeout))  # Must be int
         established_connection.set_option(ldap.OPT_NETWORK_TIMEOUT, self.timeout)  # May be float
         established_connection.set_option(ldap.OPT_TIMEOUT, self.timeout)  # May be float
+
         try:
             established_connection.protocol_version = ldap.VERSION3
             established_connection.simple_bind_s(self.user, self.password)
             log.debug("New LDAP connection to %s:%s established, user %s" % (self.host, self.port, self.user))
             # add connection class to connections and set the value to False, that means it's busy
             return established_connection
+
         except ldap.LDAPError as ex:
             log.error(
                 "Failed to open new connection to LDAP %s:%s, user %s.\n%s" % (self.host, self.port, self.user, ex)
             )
             raise
+
+
 class LDAPVoodoo(LDAPConnectionManager):
+
     def search(self, base_dn, search_filter=None, scope=ldap.SCOPE_SUBTREE, retrieve_attributes=None):
         """
         Perform LDAP search.
@@ -100,6 +117,7 @@ class LDAPVoodoo(LDAPConnectionManager):
         except Exception as ex:
             log.exception("Unexpected exception %s " % ex)
             raise
+
     def delete_entry(self, dn):
         """
         Delete the node with all of its attributes.
@@ -116,6 +134,7 @@ class LDAPVoodoo(LDAPConnectionManager):
             self.connection = self.connect()
             self.connection.delete_s(dn)
         log.info("Deleted LDAP node %s" % dn)
+
     def create_entry(self, dn, attributes):
         """
         :param dn: new entry's full_dn
@@ -124,6 +143,7 @@ class LDAPVoodoo(LDAPConnectionManager):
         """
         if not isinstance(attributes, dict):
             raise TypeError("Expected type dict() for arguments, got %s instead" % type(attributes))
+
         ldif = ldap.modlist.addModlist(attributes)
         log.info('console log :D')
         try:
@@ -138,6 +158,7 @@ class LDAPVoodoo(LDAPConnectionManager):
         except ldap.ALREADY_EXISTS:
             log.warning("Entry <%s> already exists" % dn)
         log.info("Added LDAP node %s" % dn)
+
     def modify_attributes(self, dn, attributes, create=False):
         """
         :param dn: new entry's full_dn
@@ -151,12 +172,14 @@ class LDAPVoodoo(LDAPConnectionManager):
             operation = ldap.MOD_ADD
         else:
             operation = ldap.MOD_REPLACE
+
         modlist = []
         for k, v in attributes.iteritems():
             if isinstance(v, list):
                 raise (RuntimeError, "This will not work with list values")
             if v:
                 modlist.append((operation, k, v))
+
         log.debug("Modlist: %s" % modlist)
         try:
             log.debug('%s, %s' % (dn, type(dn)))
@@ -170,6 +193,8 @@ class LDAPVoodoo(LDAPConnectionManager):
             log.exception(ex)
             self.connection.modify_s(dn, modlist)
         log.debug("Modified attribute(s) of LDAP node {0}".format(dn))
+
+
 if __name__ == '__main__':
     # HOW_TO
     # Create an instance of LDAPConnectionManager
@@ -186,8 +211,10 @@ if __name__ == '__main__':
         # SEARCH ENTRY
         found = c.search(base_dn="ou=sys,dc=co,dc=com")
         print found
+
         CN = "test"
         DN = "cn=%s,ou=sys,dc=co,dc=com" % CN
+
         on_create_attributes = dict().fromkeys(("cn", "sn", "uid", "userPassword"), CN)
         on_create_attributes['objectClass'] = ['inetOrgPerson', 'organizationalPerson', 'person', 'top']
         # ADD ENTRY
@@ -198,6 +225,7 @@ if __name__ == '__main__':
         on_modify_attributes = dict().fromkeys(("description", "mail"), "test1@gmail.com")
         c.modify_attributes(dn=DN, attributes=on_modify_attributes, create=False)
         c.delete_entry(dn=DN)
+
         #print c1
         #print c1.__dict__
         #print c1.connections
